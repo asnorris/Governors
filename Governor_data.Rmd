@@ -7,24 +7,86 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(lubridate)
+library(wbstats)
+library(ratios)
+
 ```
 
-## R Markdown
+```{r}
+# load in excel governor and ethnicity sheets - I had to change a few things formatting wise so that I could manipulate them more easily
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+gov <- read_excel("Governor_dataset_AFG_IRQ_SOM (1).xlsx")
+eth <- read_excel("Afghanistan - Ethnic groups by province 2006-19.xlsx")
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# transform data lengthwise and "uncapitalize" names so that it can be combined with the gov data
 
-```{r cars}
-summary(cars)
+eth <- pivot_longer(eth, cols = c("2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","Average"), names_to = "year") %>%
+  rename(province = Province, ethnicity = Ethnicity) %>%
+  mutate(year = as.numeric(year)) %>%
+  pivot_wider(names_from = c("ethnicity"), values_from = "value")
+
+# create a new column "year" using term start so that two datasets can be joined
+gov <- gov %>%
+  mutate(year = year(term_start))
+
+# merge datasets
+
+data <- left_join(gov, eth, by = c("year", "province")) %>%
+  rename(pashtun_reg_prop = Pashtun,
+         tajik_reg_prop = Tajik,
+         uzbek_reg_prop = Uzbek,
+         hazara_reg_prop = Hazara,
+         other_reg_prop = Other,
+         turkmen_reg_prop = "Other (Turkmen)",
+         baloch_reg_prop = "Other (Baloch)",
+         nuristani_reg_prop = "Other (Nuristani)")
+
+
+# load in national population data from the world bank
+
+pop <- wb(indicator = "SP.POP.TOTL", startdate = 2001, enddate = 2019) %>%
+  filter(country == "Afghanistan") %>%
+  rename(natl_pop = value,
+         year = date) %>%
+  select(year, natl_pop) %>%
+  mutate(year = as.numeric(year))
+
+# join again so national population is included
+
+data <- left_join(data, pop, by = "year")
+
+
+
+
+
+
+test <- data %>%
+  select(province, year, natl_pop, term_popul, pashtun_reg_prop, tajik_reg_prop, uzbek_reg_prop, hazara_reg_prop, other_reg_prop, turkmen_reg_prop, baloch_reg_prop, nuristani_reg_prop)
+test
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+               
+
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
