@@ -10,20 +10,27 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(readxl)
+library(writexl)
 library(janitor)
 library(lubridate)
 library(wbstats)
-library(ratios)
 
 ```
 
-```{r}
-# load in excel governor and ethnicity sheets - I had to change a few things formatting wise so that I could manipulate them more easily
+```{r input data}
+
+# load in excel governor and ethnicity sheets - I had to change a few things
+# formatting wise so that I could manipulate them more easily
 
 gov <- read_excel("Governor_dataset_AFG_IRQ_SOM (1).xlsx")
 eth <- read_excel("Afghanistan - Ethnic groups by province 2006-19.xlsx")
 
-# transform data lengthwise and "uncapitalize" names so that it can be combined with the gov data
+```
+
+```{r create new dataset}
+
+# transform data lengthwise and "uncapitalize" names so that it can be combined
+# with the gov data
 
 eth <- pivot_longer(eth, cols = c("2006","2007","2008","2009","2010","2011","2012","2013","2014","2015","2016","2017","2018","2019","Average"), names_to = "year") %>%
   rename(province = Province, ethnicity = Ethnicity) %>%
@@ -34,7 +41,7 @@ eth <- pivot_longer(eth, cols = c("2006","2007","2008","2009","2010","2011","201
 gov <- gov %>%
   mutate(year = year(term_start))
 
-# merge datasets
+# merge datasets by year and province
 
 data <- left_join(gov, eth, by = c("year", "province")) %>%
   rename(pashtun_reg_prop = Pashtun,
@@ -47,27 +54,57 @@ data <- left_join(gov, eth, by = c("year", "province")) %>%
          nuristani_reg_prop = "Other (Nuristani)")
 
 
-# load in national population data from the world bank
+# load in national population data from the world bank.  I don't need this now
+# but may want it in the future.
 
-pop <- wb(indicator = "SP.POP.TOTL", startdate = 2001, enddate = 2019) %>%
-  filter(country == "Afghanistan") %>%
-  rename(natl_pop = value,
-         year = date) %>%
-  select(year, natl_pop) %>%
-  mutate(year = as.numeric(year))
+# pop <- wb(indicator = "SP.POP.TOTL", startdate = 2001, enddate = 2019) %>%
+#   filter(country == "Afghanistan") %>%
+#   rename(natl_pop = value,
+#          year = date) %>%
+#   select(year, natl_pop) %>%
+#   mutate(year = as.numeric(year))
 
 # join again so national population is included
 
-data <- left_join(data, pop, by = "year")
+# data <- left_join(data, pop, by = "year")
+
+
+# add the national ethnic proportions the data came from
+# https://web.archive.org/web/20131014200908/https://www.cia.gov/library/publications/the-world-factbook/fields/2075.html?countryName=Afghanistan&countryCode=af&regionCode=sas&#af
+# this is an archive from 2013, there is no data on the current website
+
+# there may be issues here in terms of which ethnicities make up the "other" group
+
+data <- data %>%
+  mutate(pashtun_natl_prop = 0.42,
+         tajik_natl_prop = 0.27,
+         hazara_natl_prop = 0.09,
+         uzbek_natl_prop = 0.09,
+         aimak_natl_prop = 0.04,
+         turkmen_natl_prop = 0.03,
+         baloch_natl_prop = 0.02,
+         other_natl_prop = 0.04) %>%
+  mutate(pashtun_reg_natl_ratio = pashtun_reg_prop / pashtun_natl_prop,
+         tajik_reg_natl_ratio = tajik_reg_prop / tajik_natl_prop,
+         uzbek_reg_natl_ratio = uzbek_reg_prop / uzbek_natl_prop,
+         hazara_reg_natl_ratio = hazara_reg_prop / hazara_natl_prop,
+         turkmen_reg_natl_ratio = turkmen_reg_prop / turkmen_natl_prop,
+         baloch_reg_natl_ratio = baloch_reg_prop / baloch_natl_prop,
+         # nuristani_reg_natl_ratio = nuristani_reg_prop / nuristani_natl_prop,
+         other_reg_natl_ratio = other_reg_prop / other_natl_prop)
+
+```
+
+```{r create file}
+#create the excel file 
+
+write_xlsx(data, "C:\\Users\\Alexandra\\Desktop\\updated_governors.xlsx")
+
+```
 
 
 
 
-
-
-test <- data %>%
-  select(province, year, natl_pop, term_popul, pashtun_reg_prop, tajik_reg_prop, uzbek_reg_prop, hazara_reg_prop, other_reg_prop, turkmen_reg_prop, baloch_reg_prop, nuristani_reg_prop)
-test
 
 
 

@@ -370,12 +370,13 @@ summary {
 </div>
 
 
-<pre class="r"><code># load in excel governor and ethnicity sheets - I had to change a few things formatting wise so that I could manipulate them more easily
+<pre class="r"><code># load in excel governor and ethnicity sheets - I had to change a few things
+# formatting wise so that I could manipulate them more easily
 
 gov &lt;- read_excel(&quot;Governor_dataset_AFG_IRQ_SOM (1).xlsx&quot;)
-eth &lt;- read_excel(&quot;Afghanistan - Ethnic groups by province 2006-19.xlsx&quot;)
-
-# transform data lengthwise and &quot;uncapitalize&quot; names so that it can be combined with the gov data
+eth &lt;- read_excel(&quot;Afghanistan - Ethnic groups by province 2006-19.xlsx&quot;)</code></pre>
+<pre class="r"><code># transform data lengthwise and &quot;uncapitalize&quot; names so that it can be combined
+# with the gov data
 
 eth &lt;- pivot_longer(eth, cols = c(&quot;2006&quot;,&quot;2007&quot;,&quot;2008&quot;,&quot;2009&quot;,&quot;2010&quot;,&quot;2011&quot;,&quot;2012&quot;,&quot;2013&quot;,&quot;2014&quot;,&quot;2015&quot;,&quot;2016&quot;,&quot;2017&quot;,&quot;2018&quot;,&quot;2019&quot;,&quot;Average&quot;), names_to = &quot;year&quot;) %&gt;%
   rename(province = Province, ethnicity = Ethnicity) %&gt;%
@@ -386,7 +387,7 @@ eth &lt;- pivot_longer(eth, cols = c(&quot;2006&quot;,&quot;2007&quot;,&quot;200
 gov &lt;- gov %&gt;%
   mutate(year = year(term_start))
 
-# merge datasets
+# merge datasets by year and province
 
 data &lt;- left_join(gov, eth, by = c(&quot;year&quot;, &quot;province&quot;)) %&gt;%
   rename(pashtun_reg_prop = Pashtun,
@@ -399,43 +400,48 @@ data &lt;- left_join(gov, eth, by = c(&quot;year&quot;, &quot;province&quot;)) %
          nuristani_reg_prop = &quot;Other (Nuristani)&quot;)
 
 
-# load in national population data from the world bank
+# load in national population data from the world bank.  I don't need this now
+# but may want it in the future.
 
-pop &lt;- wb(indicator = &quot;SP.POP.TOTL&quot;, startdate = 2001, enddate = 2019) %&gt;%
-  filter(country == &quot;Afghanistan&quot;) %&gt;%
-  rename(natl_pop = value,
-         year = date) %&gt;%
-  select(year, natl_pop) %&gt;%
-  mutate(year = as.numeric(year))
+# pop &lt;- wb(indicator = &quot;SP.POP.TOTL&quot;, startdate = 2001, enddate = 2019) %&gt;%
+#   filter(country == &quot;Afghanistan&quot;) %&gt;%
+#   rename(natl_pop = value,
+#          year = date) %&gt;%
+#   select(year, natl_pop) %&gt;%
+#   mutate(year = as.numeric(year))
 
 # join again so national population is included
 
-data &lt;- left_join(data, pop, by = &quot;year&quot;)
+# data &lt;- left_join(data, pop, by = &quot;year&quot;)
 
 
+# add the national ethnic proportions the data came from
+# https://web.archive.org/web/20131014200908/https://www.cia.gov/library/publications/the-world-factbook/fields/2075.html?countryName=Afghanistan&amp;countryCode=af&amp;regionCode=sas&amp;#af
+# this is an archive from 2013, there is no data on the current website
 
+# there may be issues here in terms of which ethnicities make up the &quot;other&quot; group
 
+data &lt;- data %&gt;%
+  mutate(pashtun_natl_prop = 0.42,
+         tajik_natl_prop = 0.27,
+         hazara_natl_prop = 0.09,
+         uzbek_natl_prop = 0.09,
+         aimak_natl_prop = 0.04,
+         turkmen_natl_prop = 0.03,
+         baloch_natl_prop = 0.02,
+         other_natl_prop = 0.04) %&gt;%
+  mutate(pashtun_reg_natl_ratio = pashtun_reg_prop / pashtun_natl_prop,
+         tajik_reg_natl_ratio = tajik_reg_prop / tajik_natl_prop,
+         uzbek_reg_natl_ratio = uzbek_reg_prop / uzbek_natl_prop,
+         hazara_reg_natl_ratio = hazara_reg_prop / hazara_natl_prop,
+         turkmen_reg_natl_ratio = turkmen_reg_prop / turkmen_natl_prop,
+         baloch_reg_natl_ratio = baloch_reg_prop / baloch_natl_prop,
+         # nuristani_reg_natl_ratio = nuristani_reg_prop / nuristani_natl_prop,
+         other_reg_natl_ratio = other_reg_prop / other_natl_prop)</code></pre>
+<pre class="r"><code>#create the excel file 
 
-
-test &lt;- data %&gt;%
-  select(province, year, natl_pop, term_popul, pashtun_reg_prop, tajik_reg_prop, uzbek_reg_prop, hazara_reg_prop, other_reg_prop, turkmen_reg_prop, baloch_reg_prop, nuristani_reg_prop)
-test</code></pre>
-<pre><code>## # A tibble: 283 x 12
-##    province  year natl_pop term_popul pashtun_reg_prop tajik_reg_prop
-##    &lt;chr&gt;    &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt;            &lt;dbl&gt;          &lt;dbl&gt;
-##  1 Badakhs…  2003 23680871    701058.          NA              NA    
-##  2 Badakhs…  2003 23680871    721797           NA              NA    
-##  3 Badakhs…  2004 24726684    742536.          NA              NA    
-##  4 Badakhs…  2005 25654277    842617           NA              NA    
-##  5 Badakhs…  2009 28394813    959822            0.0306          0.729
-##  6 Badakhs…  2010 29185507   1132157            0               0.661
-##  7 Badakhs…  2015 34413603   1310622            0               0.67 
-##  8 Badghis   2001 21606988    349180           NA              NA    
-##  9 Badghis   2004 24726684    393118           NA              NA    
-## 10 Badghis   2005 25654277    414677           NA              NA    
-## # … with 273 more rows, and 6 more variables: uzbek_reg_prop &lt;dbl&gt;,
-## #   hazara_reg_prop &lt;dbl&gt;, other_reg_prop &lt;dbl&gt;, turkmen_reg_prop &lt;dbl&gt;,
-## #   baloch_reg_prop &lt;dbl&gt;, nuristani_reg_prop &lt;dbl&gt;</code></pre>
+write_xlsx(data, &quot;C:\\Users\\Alexandra\\Desktop\\updated_governors.xlsx&quot;)</code></pre>
+<p>```</p>
 
 
 
